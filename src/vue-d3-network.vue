@@ -1,5 +1,5 @@
 <script>
-import * as forceSimulation from 'd3-force'
+import * as forceSimulation from 'd3-force-3d'
 import svgRenderer from './components/svgRenderer.vue'
 import canvasRenderer from './components/canvasRenderer.vue'
 import saveImage from './lib/js/saveImage.js'

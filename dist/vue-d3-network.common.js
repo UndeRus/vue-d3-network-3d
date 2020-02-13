@@ -4388,16 +4388,17 @@ module.exports = document && document.documentElement;
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-var d3_force_namespaceObject = {};
-__webpack_require__.r(d3_force_namespaceObject);
-__webpack_require__.d(d3_force_namespaceObject, "forceCenter", function() { return center; });
-__webpack_require__.d(d3_force_namespaceObject, "forceCollide", function() { return collide; });
-__webpack_require__.d(d3_force_namespaceObject, "forceLink", function() { return src_link; });
-__webpack_require__.d(d3_force_namespaceObject, "forceManyBody", function() { return manyBody; });
-__webpack_require__.d(d3_force_namespaceObject, "forceRadial", function() { return radial; });
-__webpack_require__.d(d3_force_namespaceObject, "forceSimulation", function() { return src_simulation; });
-__webpack_require__.d(d3_force_namespaceObject, "forceX", function() { return d3_force_src_x; });
-__webpack_require__.d(d3_force_namespaceObject, "forceY", function() { return d3_force_src_y; });
+var d3_force_3d_src_namespaceObject = {};
+__webpack_require__.r(d3_force_3d_src_namespaceObject);
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceCenter", function() { return center; });
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceCollide", function() { return collide; });
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceLink", function() { return src_link; });
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceManyBody", function() { return manyBody; });
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceRadial", function() { return radial; });
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceSimulation", function() { return src_simulation; });
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceX", function() { return d3_force_3d_src_x; });
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceY", function() { return d3_force_3d_src_y; });
+__webpack_require__.d(d3_force_3d_src_namespaceObject, "forceZ", function() { return d3_force_3d_src_z; });
 
 // CONCATENATED MODULE: ./node_modules/@vue/cli-service/lib/commands/build/setPublicPath.js
 // This file is imported into lib/wc client bundles.
@@ -4459,26 +4460,31 @@ function _toConsumableArray(arr) {
 var object_assign = __webpack_require__("5176");
 var assign_default = /*#__PURE__*/__webpack_require__.n(object_assign);
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/center.js
-/* harmony default export */ var center = (function(x, y) {
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/center.js
+/* harmony default export */ var center = (function(x, y, z) {
   var nodes;
 
   if (x == null) x = 0;
   if (y == null) y = 0;
+  if (z == null) z = 0;
 
   function force() {
     var i,
         n = nodes.length,
         node,
         sx = 0,
-        sy = 0;
+        sy = 0,
+        sz = 0;
 
     for (i = 0; i < n; ++i) {
-      node = nodes[i], sx += node.x, sy += node.y;
+      node = nodes[i], sx += node.x || 0, sy += node.y || 0, sz += node.z || 0;
     }
 
-    for (sx = sx / n - x, sy = sy / n - y, i = 0; i < n; ++i) {
-      node = nodes[i], node.x -= sx, node.y -= sy;
+    for (sx = sx / n - x, sy = sy / n - y, sz = sz / n - z, i = 0; i < n; ++i) {
+      node = nodes[i];
+      if (sx) { node.x -= sx }
+      if (sy) { node.y -= sy; }
+      if (sz) { node.z -= sz; }
     }
   }
 
@@ -4494,29 +4500,421 @@ var assign_default = /*#__PURE__*/__webpack_require__.n(object_assign);
     return arguments.length ? (y = +_, force) : y;
   };
 
+  force.z = function(_) {
+    return arguments.length ? (z = +_, force) : z;
+  };
+
   return force;
 });
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/constant.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/constant.js
 /* harmony default export */ var constant = (function(x) {
   return function() {
     return x;
   };
 });
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/jiggle.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/jiggle.js
 /* harmony default export */ var jiggle = (function() {
   return (Math.random() - 0.5) * 1e-6;
 });
 
-// CONCATENATED MODULE: ./node_modules/d3-quadtree/src/add.js
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/add.js
 /* harmony default export */ var add = (function(d) {
-  var x = +this._x.call(null, d),
-      y = +this._y.call(null, d);
-  return add_add(this.cover(x, y), x, y, d);
+  var x = +this._x.call(null, d);
+  return add_add(this.cover(x), x, d);
 });
 
-function add_add(tree, x, y, d) {
+function add_add(tree, x, d) {
+  if (isNaN(x)) return tree; // ignore invalid points
+
+  var parent,
+      node = tree._root,
+      leaf = {data: d},
+      x0 = tree._x0,
+      x1 = tree._x1,
+      xm,
+      xp,
+      right,
+      i,
+      j;
+
+  // If the tree is empty, initialize the root as a leaf.
+  if (!node) return tree._root = leaf, tree;
+
+  // Find the existing leaf for the new point, or add it.
+  while (node.length) {
+    if (right = x >= (xm = (x0 + x1) / 2)) x0 = xm; else x1 = xm;
+    if (parent = node, !(node = node[i = +right])) return parent[i] = leaf, tree;
+  }
+
+  // Is the new point is exactly coincident with the existing point?
+  xp = +tree._x.call(null, node.data);
+  if (x === xp) return leaf.next = node, parent ? parent[i] = leaf : tree._root = leaf, tree;
+
+  // Otherwise, split the leaf node until the old and new point are separated.
+  do {
+    parent = parent ? parent[i] = new Array(2) : tree._root = new Array(2);
+    if (right = x >= (xm = (x0 + x1) / 2)) x0 = xm; else x1 = xm;
+  } while ((i = +right) === (j = +(xp >= xm)));
+  return parent[j] = node, parent[i] = leaf, tree;
+}
+
+function addAll(data) {
+  var i, n = data.length,
+      x,
+      xz = new Array(n),
+      x0 = Infinity,
+      x1 = -Infinity;
+
+  // Compute the points and their extent.
+  for (i = 0; i < n; ++i) {
+    if (isNaN(x = +this._x.call(null, data[i]))) continue;
+    xz[i] = x;
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+  }
+
+  // If there were no (valid) points, inherit the existing extent.
+  if (x1 < x0) x0 = this._x0, x1 = this._x1;
+
+  // Expand the tree to cover the new points.
+  this.cover(x0).cover(x1);
+
+  // Add the new points.
+  for (i = 0; i < n; ++i) {
+    add_add(this, xz[i], data[i]);
+  }
+
+  return this;
+}
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/cover.js
+/* harmony default export */ var cover = (function(x) {
+  if (isNaN(x = +x)) return this; // ignore invalid points
+
+  var x0 = this._x0,
+      x1 = this._x1;
+
+  // If the binarytree has no extent, initialize them.
+  // Integer extent are necessary so that if we later double the extent,
+  // the existing half boundaries don’t change due to floating point error!
+  if (isNaN(x0)) {
+    x1 = (x0 = Math.floor(x)) + 1;
+  }
+
+  // Otherwise, double repeatedly to cover.
+  else if (x0 > x || x > x1) {
+    var z = x1 - x0,
+        node = this._root,
+        parent,
+        i;
+
+    switch (i = +(x < (x0 + x1) / 2)) {
+      case 0: {
+        do parent = new Array(2), parent[i] = node, node = parent;
+        while (z *= 2, x1 = x0 + z, x > x1);
+        break;
+      }
+      case 1: {
+        do parent = new Array(2), parent[i] = node, node = parent;
+        while (z *= 2, x0 = x1 - z, x0 > x);
+        break;
+      }
+    }
+
+    if (this._root && this._root.length) this._root = node;
+  }
+
+  // If the binarytree covers the point already, just return.
+  else return this;
+
+  this._x0 = x0;
+  this._x1 = x1;
+  return this;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/data.js
+/* harmony default export */ var src_data = (function() {
+  var data = [];
+  this.visit(function(node) {
+    if (!node.length) do data.push(node.data); while (node = node.next)
+  });
+  return data;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/extent.js
+/* harmony default export */ var extent = (function(_) {
+  return arguments.length
+      ? this.cover(+_[0][0]).cover(+_[1][0])
+      : isNaN(this._x0) ? undefined : [[this._x0], [this._x1]];
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/half.js
+/* harmony default export */ var half = (function(node, x0, x1) {
+  this.node = node;
+  this.x0 = x0;
+  this.x1 = x1;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/find.js
+
+
+/* harmony default export */ var find = (function(x, radius) {
+  var data,
+      x0 = this._x0,
+      x1,
+      x2,
+      x3 = this._x1,
+      halves = [],
+      node = this._root,
+      q,
+      i;
+
+  if (node) halves.push(new half(node, x0, x3));
+  if (radius == null) radius = Infinity;
+  else {
+    x0 = x - radius;
+    x3 = x + radius;
+  }
+
+  while (q = halves.pop()) {
+
+    // Stop searching if this half can’t contain a closer node.
+    if (!(node = q.node)
+        || (x1 = q.x0) > x3
+        || (x2 = q.x1) < x0) continue;
+
+    // Bisect the current half.
+    if (node.length) {
+      var xm = (x1 + x2) / 2;
+
+      halves.push(
+        new half(node[1], xm, x2),
+        new half(node[0], x1, xm)
+      );
+
+      // Visit the closest half first.
+      if (i = +(x >= xm)) {
+        q = halves[halves.length - 1];
+        halves[halves.length - 1] = halves[halves.length - 1 - i];
+        halves[halves.length - 1 - i] = q;
+      }
+    }
+
+    // Visit this point. (Visiting coincident points isn’t necessary!)
+    else {
+      var d = Math.abs(x - +this._x.call(null, node.data));
+      if (d < radius) {
+        radius = d;
+        x0 = x - d;
+        x3 = x + d;
+        data = node.data;
+      }
+    }
+  }
+
+  return data;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/remove.js
+/* harmony default export */ var remove = (function(d) {
+  if (isNaN(x = +this._x.call(null, d))) return this; // ignore invalid points
+
+  var parent,
+      node = this._root,
+      retainer,
+      previous,
+      next,
+      x0 = this._x0,
+      x1 = this._x1,
+      x,
+      xm,
+      right,
+      i,
+      j;
+
+  // If the tree is empty, initialize the root as a leaf.
+  if (!node) return this;
+
+  // Find the leaf node for the point.
+  // While descending, also retain the deepest parent with a non-removed sibling.
+  if (node.length) while (true) {
+    if (right = x >= (xm = (x0 + x1) / 2)) x0 = xm; else x1 = xm;
+    if (!(parent = node, node = node[i = +right])) return this;
+    if (!node.length) break;
+    if (parent[(i + 1) & 1]) retainer = parent, j = i;
+  }
+
+  // Find the point to remove.
+  while (node.data !== d) if (!(previous = node, node = node.next)) return this;
+  if (next = node.next) delete node.next;
+
+  // If there are multiple coincident points, remove just the point.
+  if (previous) return (next ? previous.next = next : delete previous.next), this;
+
+  // If this is the root point, remove it.
+  if (!parent) return this._root = next, this;
+
+  // Remove this leaf.
+  next ? parent[i] = next : delete parent[i];
+
+  // If the parent now contains exactly one leaf, collapse superfluous parents.
+  if ((node = parent[0] || parent[1])
+      && node === (parent[1] || parent[0])
+      && !node.length) {
+    if (retainer) retainer[j] = node;
+    else this._root = node;
+  }
+
+  return this;
+});
+
+function removeAll(data) {
+  for (var i = 0, n = data.length; i < n; ++i) this.remove(data[i]);
+  return this;
+}
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/root.js
+/* harmony default export */ var root = (function() {
+  return this._root;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/size.js
+/* harmony default export */ var src_size = (function() {
+  var size = 0;
+  this.visit(function(node) {
+    if (!node.length) do ++size; while (node = node.next)
+  });
+  return size;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/visit.js
+
+
+/* harmony default export */ var visit = (function(callback) {
+  var halves = [], q, node = this._root, child, x0, x1;
+  if (node) halves.push(new half(node, this._x0, this._x1));
+  while (q = halves.pop()) {
+    if (!callback(node = q.node, x0 = q.x0, x1 = q.x1) && node.length) {
+      var xm = (x0 + x1) / 2;
+      if (child = node[1]) halves.push(new half(child, xm, x1));
+      if (child = node[0]) halves.push(new half(child, x0, xm));
+    }
+  }
+  return this;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/visitAfter.js
+
+
+/* harmony default export */ var visitAfter = (function(callback) {
+  var halves = [], next = [], q;
+  if (this._root) halves.push(new half(this._root, this._x0, this._x1));
+  while (q = halves.pop()) {
+    var node = q.node;
+    if (node.length) {
+      var child, x0 = q.x0, x1 = q.x1, xm = (x0 + x1) / 2;
+      if (child = node[0]) halves.push(new half(child, x0, xm));
+      if (child = node[1]) halves.push(new half(child, xm, x1));
+    }
+    next.push(q);
+  }
+  while (q = next.pop()) {
+    callback(q.node, q.x0, q.x1);
+  }
+  return this;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/x.js
+function defaultX(d) {
+  return d[0];
+}
+
+/* harmony default export */ var src_x = (function(_) {
+  return arguments.length ? (this._x = _, this) : this._x;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/binarytree.js
+
+
+
+
+
+
+
+
+
+
+
+
+function binarytree(nodes, x) {
+  var tree = new Binarytree(x == null ? defaultX : x, NaN, NaN);
+  return nodes == null ? tree : tree.addAll(nodes);
+}
+
+function Binarytree(x, x0, x1) {
+  this._x = x;
+  this._x0 = x0;
+  this._x1 = x1;
+  this._root = undefined;
+}
+
+function leaf_copy(leaf) {
+  var copy = {data: leaf.data}, next = copy;
+  while (leaf = leaf.next) next = next.next = {data: leaf.data};
+  return copy;
+}
+
+var treeProto = binarytree.prototype = Binarytree.prototype;
+
+treeProto.copy = function() {
+  var copy = new Binarytree(this._x, this._x0, this._x1),
+      node = this._root,
+      nodes,
+      child;
+
+  if (!node) return copy;
+
+  if (!node.length) return copy._root = leaf_copy(node), copy;
+
+  nodes = [{source: node, target: copy._root = new Array(2)}];
+  while (node = nodes.pop()) {
+    for (var i = 0; i < 2; ++i) {
+      if (child = node.source[i]) {
+        if (child.length) nodes.push({source: child, target: node.target[i] = new Array(2)});
+        else node.target[i] = leaf_copy(child);
+      }
+    }
+  }
+
+  return copy;
+};
+
+treeProto.add = add;
+treeProto.addAll = addAll;
+treeProto.cover = cover;
+treeProto.data = src_data;
+treeProto.extent = extent;
+treeProto.find = find;
+treeProto.remove = remove;
+treeProto.removeAll = removeAll;
+treeProto.root = root;
+treeProto.size = src_size;
+treeProto.visit = visit;
+treeProto.visitAfter = visitAfter;
+treeProto.x = src_x;
+// CONCATENATED MODULE: ./node_modules/d3-binarytree/src/index.js
+
+
+// CONCATENATED MODULE: ./node_modules/d3-quadtree/src/add.js
+/* harmony default export */ var src_add = (function(d) {
+  var x = +this._x.call(null, d),
+      y = +this._y.call(null, d);
+  return src_add_add(this.cover(x, y), x, y, d);
+});
+
+function src_add_add(tree, x, y, d) {
   if (isNaN(x) || isNaN(y)) return tree; // ignore invalid points
 
   var parent,
@@ -4559,7 +4957,7 @@ function add_add(tree, x, y, d) {
   return parent[j] = node, parent[i] = leaf, tree;
 }
 
-function addAll(data) {
+function add_addAll(data) {
   var d, i, n = data.length,
       x,
       y,
@@ -4590,14 +4988,14 @@ function addAll(data) {
 
   // Add the new points.
   for (i = 0; i < n; ++i) {
-    add_add(this, xz[i], yz[i], data[i]);
+    src_add_add(this, xz[i], yz[i], data[i]);
   }
 
   return this;
 }
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/cover.js
-/* harmony default export */ var cover = (function(x, y) {
+/* harmony default export */ var src_cover = (function(x, y) {
   if (isNaN(x = +x) || isNaN(y = +y)) return this; // ignore invalid points
 
   var x0 = this._x0,
@@ -4657,7 +5055,7 @@ function addAll(data) {
 });
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/data.js
-/* harmony default export */ var src_data = (function() {
+/* harmony default export */ var d3_quadtree_src_data = (function() {
   var data = [];
   this.visit(function(node) {
     if (!node.length) do data.push(node.data); while (node = node.next)
@@ -4666,14 +5064,14 @@ function addAll(data) {
 });
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/extent.js
-/* harmony default export */ var extent = (function(_) {
+/* harmony default export */ var src_extent = (function(_) {
   return arguments.length
       ? this.cover(+_[0][0], +_[0][1]).cover(+_[1][0], +_[1][1])
       : isNaN(this._x0) ? undefined : [[this._x0, this._y0], [this._x1, this._y1]];
 });
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/quad.js
-/* harmony default export */ var src_quad = (function(node, x0, y0, x1, y1) {
+/* harmony default export */ var quad = (function(node, x0, y0, x1, y1) {
   this.node = node;
   this.x0 = x0;
   this.y0 = y0;
@@ -4684,7 +5082,7 @@ function addAll(data) {
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/find.js
 
 
-/* harmony default export */ var find = (function(x, y, radius) {
+/* harmony default export */ var src_find = (function(x, y, radius) {
   var data,
       x0 = this._x0,
       y0 = this._y0,
@@ -4699,7 +5097,7 @@ function addAll(data) {
       q,
       i;
 
-  if (node) quads.push(new src_quad(node, x0, y0, x3, y3));
+  if (node) quads.push(new quad(node, x0, y0, x3, y3));
   if (radius == null) radius = Infinity;
   else {
     x0 = x - radius, y0 = y - radius;
@@ -4722,10 +5120,10 @@ function addAll(data) {
           ym = (y1 + y2) / 2;
 
       quads.push(
-        new src_quad(node[3], xm, ym, x2, y2),
-        new src_quad(node[2], x1, ym, xm, y2),
-        new src_quad(node[1], xm, y1, x2, ym),
-        new src_quad(node[0], x1, y1, xm, ym)
+        new quad(node[3], xm, ym, x2, y2),
+        new quad(node[2], x1, ym, xm, y2),
+        new quad(node[1], xm, y1, x2, ym),
+        new quad(node[0], x1, y1, xm, ym)
       );
 
       // Visit the closest quadrant first.
@@ -4754,7 +5152,7 @@ function addAll(data) {
 });
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/remove.js
-/* harmony default export */ var remove = (function(d) {
+/* harmony default export */ var src_remove = (function(d) {
   if (isNaN(x = +this._x.call(null, d)) || isNaN(y = +this._y.call(null, d))) return this; // ignore invalid points
 
   var parent,
@@ -4812,18 +5210,18 @@ function addAll(data) {
   return this;
 });
 
-function removeAll(data) {
+function remove_removeAll(data) {
   for (var i = 0, n = data.length; i < n; ++i) this.remove(data[i]);
   return this;
 }
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/root.js
-/* harmony default export */ var root = (function() {
+/* harmony default export */ var src_root = (function() {
   return this._root;
 });
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/size.js
-/* harmony default export */ var src_size = (function() {
+/* harmony default export */ var d3_quadtree_src_size = (function() {
   var size = 0;
   this.visit(function(node) {
     if (!node.length) do ++size; while (node = node.next)
@@ -4834,16 +5232,16 @@ function removeAll(data) {
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/visit.js
 
 
-/* harmony default export */ var visit = (function(callback) {
+/* harmony default export */ var src_visit = (function(callback) {
   var quads = [], q, node = this._root, child, x0, y0, x1, y1;
-  if (node) quads.push(new src_quad(node, this._x0, this._y0, this._x1, this._y1));
+  if (node) quads.push(new quad(node, this._x0, this._y0, this._x1, this._y1));
   while (q = quads.pop()) {
     if (!callback(node = q.node, x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1) && node.length) {
       var xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
-      if (child = node[3]) quads.push(new src_quad(child, xm, ym, x1, y1));
-      if (child = node[2]) quads.push(new src_quad(child, x0, ym, xm, y1));
-      if (child = node[1]) quads.push(new src_quad(child, xm, y0, x1, ym));
-      if (child = node[0]) quads.push(new src_quad(child, x0, y0, xm, ym));
+      if (child = node[3]) quads.push(new quad(child, xm, ym, x1, y1));
+      if (child = node[2]) quads.push(new quad(child, x0, ym, xm, y1));
+      if (child = node[1]) quads.push(new quad(child, xm, y0, x1, ym));
+      if (child = node[0]) quads.push(new quad(child, x0, y0, xm, ym));
     }
   }
   return this;
@@ -4852,17 +5250,17 @@ function removeAll(data) {
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/visitAfter.js
 
 
-/* harmony default export */ var visitAfter = (function(callback) {
+/* harmony default export */ var src_visitAfter = (function(callback) {
   var quads = [], next = [], q;
-  if (this._root) quads.push(new src_quad(this._root, this._x0, this._y0, this._x1, this._y1));
+  if (this._root) quads.push(new quad(this._root, this._x0, this._y0, this._x1, this._y1));
   while (q = quads.pop()) {
     var node = q.node;
     if (node.length) {
       var child, x0 = q.x0, y0 = q.y0, x1 = q.x1, y1 = q.y1, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
-      if (child = node[0]) quads.push(new src_quad(child, x0, y0, xm, ym));
-      if (child = node[1]) quads.push(new src_quad(child, xm, y0, x1, ym));
-      if (child = node[2]) quads.push(new src_quad(child, x0, ym, xm, y1));
-      if (child = node[3]) quads.push(new src_quad(child, xm, ym, x1, y1));
+      if (child = node[0]) quads.push(new quad(child, x0, y0, xm, ym));
+      if (child = node[1]) quads.push(new quad(child, xm, y0, x1, ym));
+      if (child = node[2]) quads.push(new quad(child, x0, ym, xm, y1));
+      if (child = node[3]) quads.push(new quad(child, xm, ym, x1, y1));
     }
     next.push(q);
   }
@@ -4873,11 +5271,11 @@ function removeAll(data) {
 });
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/src/x.js
-function defaultX(d) {
+function x_defaultX(d) {
   return d[0];
 }
 
-/* harmony default export */ var src_x = (function(_) {
+/* harmony default export */ var d3_quadtree_src_x = (function(_) {
   return arguments.length ? (this._x = _, this) : this._x;
 });
 
@@ -4905,7 +5303,7 @@ function defaultY(d) {
 
 
 function quadtree(nodes, x, y) {
-  var tree = new Quadtree(x == null ? defaultX : x, y == null ? defaultY : y, NaN, NaN, NaN, NaN);
+  var tree = new Quadtree(x == null ? x_defaultX : x, y == null ? defaultY : y, NaN, NaN, NaN, NaN);
   return nodes == null ? tree : tree.addAll(nodes);
 }
 
@@ -4919,15 +5317,15 @@ function Quadtree(x, y, x0, y0, x1, y1) {
   this._root = undefined;
 }
 
-function leaf_copy(leaf) {
+function quadtree_leaf_copy(leaf) {
   var copy = {data: leaf.data}, next = copy;
   while (leaf = leaf.next) next = next.next = {data: leaf.data};
   return copy;
 }
 
-var treeProto = quadtree.prototype = Quadtree.prototype;
+var quadtree_treeProto = quadtree.prototype = Quadtree.prototype;
 
-treeProto.copy = function() {
+quadtree_treeProto.copy = function() {
   var copy = new Quadtree(this._x, this._y, this._x0, this._y0, this._x1, this._y1),
       node = this._root,
       nodes,
@@ -4935,14 +5333,14 @@ treeProto.copy = function() {
 
   if (!node) return copy;
 
-  if (!node.length) return copy._root = leaf_copy(node), copy;
+  if (!node.length) return copy._root = quadtree_leaf_copy(node), copy;
 
   nodes = [{source: node, target: copy._root = new Array(4)}];
   while (node = nodes.pop()) {
     for (var i = 0; i < 4; ++i) {
       if (child = node.source[i]) {
         if (child.length) nodes.push({source: child, target: node.target[i] = new Array(4)});
-        else node.target[i] = leaf_copy(child);
+        else node.target[i] = quadtree_leaf_copy(child);
       }
     }
   }
@@ -4950,25 +5348,569 @@ treeProto.copy = function() {
   return copy;
 };
 
-treeProto.add = add;
-treeProto.addAll = addAll;
-treeProto.cover = cover;
-treeProto.data = src_data;
-treeProto.extent = extent;
-treeProto.find = find;
-treeProto.remove = remove;
-treeProto.removeAll = removeAll;
-treeProto.root = root;
-treeProto.size = src_size;
-treeProto.visit = visit;
-treeProto.visitAfter = visitAfter;
-treeProto.x = src_x;
-treeProto.y = src_y;
+quadtree_treeProto.add = src_add;
+quadtree_treeProto.addAll = add_addAll;
+quadtree_treeProto.cover = src_cover;
+quadtree_treeProto.data = d3_quadtree_src_data;
+quadtree_treeProto.extent = src_extent;
+quadtree_treeProto.find = src_find;
+quadtree_treeProto.remove = src_remove;
+quadtree_treeProto.removeAll = remove_removeAll;
+quadtree_treeProto.root = src_root;
+quadtree_treeProto.size = d3_quadtree_src_size;
+quadtree_treeProto.visit = src_visit;
+quadtree_treeProto.visitAfter = src_visitAfter;
+quadtree_treeProto.x = d3_quadtree_src_x;
+quadtree_treeProto.y = src_y;
 
 // CONCATENATED MODULE: ./node_modules/d3-quadtree/index.js
 
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/collide.js
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/add.js
+/* harmony default export */ var d3_octree_src_add = (function(d) {
+  var x = +this._x.call(null, d),
+      y = +this._y.call(null, d),
+      z = +this._z.call(null, d);
+  return d3_octree_src_add_add(this.cover(x, y, z), x, y, z, d);
+});
+
+function d3_octree_src_add_add(tree, x, y, z, d) {
+  if (isNaN(x) || isNaN(y) || isNaN(z)) return tree; // ignore invalid points
+
+  var parent,
+      node = tree._root,
+      leaf = {data: d},
+      x0 = tree._x0,
+      y0 = tree._y0,
+      z0 = tree._z0,
+      x1 = tree._x1,
+      y1 = tree._y1,
+      z1 = tree._z1,
+      xm,
+      ym,
+      zm,
+      xp,
+      yp,
+      zp,
+      right,
+      bottom,
+      deep,
+      i,
+      j;
+
+  // If the tree is empty, initialize the root as a leaf.
+  if (!node) return tree._root = leaf, tree;
+
+  // Find the existing leaf for the new point, or add it.
+  while (node.length) {
+    if (right = x >= (xm = (x0 + x1) / 2)) x0 = xm; else x1 = xm;
+    if (bottom = y >= (ym = (y0 + y1) / 2)) y0 = ym; else y1 = ym;
+    if (deep = z >= (zm = (z0 + z1) / 2)) z0 = zm; else z1 = zm;
+    if (parent = node, !(node = node[i = deep << 2 | bottom << 1 | right])) return parent[i] = leaf, tree;
+  }
+
+  // Is the new point is exactly coincident with the existing point?
+  xp = +tree._x.call(null, node.data);
+  yp = +tree._y.call(null, node.data);
+  zp = +tree._z.call(null, node.data);
+  if (x === xp && y === yp && z === zp) return leaf.next = node, parent ? parent[i] = leaf : tree._root = leaf, tree;
+
+  // Otherwise, split the leaf node until the old and new point are separated.
+  do {
+    parent = parent ? parent[i] = new Array(8) : tree._root = new Array(8);
+    if (right = x >= (xm = (x0 + x1) / 2)) x0 = xm; else x1 = xm;
+    if (bottom = y >= (ym = (y0 + y1) / 2)) y0 = ym; else y1 = ym;
+    if (deep = z >= (zm = (z0 + z1) / 2)) z0 = zm; else z1 = zm;
+  } while ((i = deep << 2 | bottom << 1 | right) === (j = (zp >= zm) << 2 | (yp >= ym) << 1 | (xp >= xm)));
+  return parent[j] = node, parent[i] = leaf, tree;
+}
+
+function src_add_addAll(data) {
+  var d, i, n = data.length,
+      x,
+      y,
+      z,
+      xz = new Array(n),
+      yz = new Array(n),
+      zz = new Array(n),
+      x0 = Infinity,
+      y0 = Infinity,
+      z0 = Infinity,
+      x1 = -Infinity,
+      y1 = -Infinity,
+      z1 = -Infinity;
+
+  // Compute the points and their extent.
+  for (i = 0; i < n; ++i) {
+    if (isNaN(x = +this._x.call(null, d = data[i])) || isNaN(y = +this._y.call(null, d)) || isNaN(z = +this._z.call(null, d))) continue;
+    xz[i] = x;
+    yz[i] = y;
+    zz[i] = z;
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+    if (z < z0) z0 = z;
+    if (z > z1) z1 = z;
+  }
+
+  // If there were no (valid) points, inherit the existing extent.
+  if (x1 < x0) x0 = this._x0, x1 = this._x1;
+  if (y1 < y0) y0 = this._y0, y1 = this._y1;
+  if (z1 < z0) z0 = this._z0, z1 = this._z1;
+
+  // Expand the tree to cover the new points.
+  this.cover(x0, y0, z0).cover(x1, y1, z1);
+
+  // Add the new points.
+  for (i = 0; i < n; ++i) {
+    d3_octree_src_add_add(this, xz[i], yz[i], zz[i], data[i]);
+  }
+
+  return this;
+}
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/cover.js
+/* harmony default export */ var d3_octree_src_cover = (function(x, y, z) {
+  if (isNaN(x = +x) || isNaN(y = +y) || isNaN(z = +z)) return this; // ignore invalid points
+
+  var x0 = this._x0,
+      y0 = this._y0,
+      z0 = this._z0,
+      x1 = this._x1,
+      y1 = this._y1,
+      z1 = this._z1;
+
+  // If the octree has no extent, initialize them.
+  // Integer extent are necessary so that if we later double the extent,
+  // the existing octant boundaries don’t change due to floating point error!
+  if (isNaN(x0)) {
+    x1 = (x0 = Math.floor(x)) + 1;
+    y1 = (y0 = Math.floor(y)) + 1;
+    z1 = (z0 = Math.floor(z)) + 1;
+  }
+
+  // Otherwise, double repeatedly to cover.
+  else if (x0 > x || x > x1 || y0 > y || y > y1 || z0 > z || z > z1) {
+    var t = x1 - x0,
+        node = this._root,
+        parent,
+        i;
+
+    switch (i = (z < (z0 + z1) / 2) << 2 | (y < (y0 + y1) / 2) << 1 | (x < (x0 + x1) / 2)) {
+      case 0: {
+        do parent = new Array(8), parent[i] = node, node = parent;
+        while (t *= 2, x1 = x0 + t, y1 = y0 + t, z1 = z0 + t, x > x1 || y > y1 || z > z1);
+        break;
+      }
+      case 1: {
+        do parent = new Array(8), parent[i] = node, node = parent;
+        while (t *= 2, x0 = x1 - t, y1 = y0 + t, z1 = z0 + t, x0 > x || y > y1 || z > z1);
+        break;
+      }
+      case 2: {
+        do parent = new Array(8), parent[i] = node, node = parent;
+        while (t *= 2, x1 = x0 + t, y0 = y1 - t, z1 = z0 + t, x > x1 || y0 > y || z > z1);
+        break;
+      }
+      case 3: {
+        do parent = new Array(8), parent[i] = node, node = parent;
+        while (t *= 2, x0 = x1 - t, y0 = y1 - t, z1 = z0 + t, x0 > x || y0 > y || z > z1);
+        break;
+      }
+      case 4: {
+        do parent = new Array(8), parent[i] = node, node = parent;
+        while (t *= 2, x1 = x0 + t, y1 = y0 + t, z0 = z1 - t, x > x1 || y > y1 || z0 > z);
+        break;
+      }
+      case 5: {
+        do parent = new Array(8), parent[i] = node, node = parent;
+        while (t *= 2, x0 = x1 - t, y1 = y0 + t, z0 = z1 - t, x0 > x || y > y1 || z0 > z);
+        break;
+      }
+      case 6: {
+        do parent = new Array(8), parent[i] = node, node = parent;
+        while (t *= 2, x1 = x0 + t, y0 = y1 - t, z0 = z1 - t, x > x1 || y0 > y || z0 > z);
+        break;
+      }
+      case 7: {
+        do parent = new Array(8), parent[i] = node, node = parent;
+        while (t *= 2, x0 = x1 - t, y0 = y1 - t, z0 = z1 - t, x0 > x || y0 > y || z0 > z);
+        break;
+      }
+    }
+
+    if (this._root && this._root.length) this._root = node;
+  }
+
+  // If the octree covers the point already, just return.
+  else return this;
+
+  this._x0 = x0;
+  this._y0 = y0;
+  this._z0 = z0;
+  this._x1 = x1;
+  this._y1 = y1;
+  this._z1 = z1;
+  return this;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/data.js
+/* harmony default export */ var d3_octree_src_data = (function() {
+  var data = [];
+  this.visit(function(node) {
+    if (!node.length) do data.push(node.data); while (node = node.next)
+  });
+  return data;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/extent.js
+/* harmony default export */ var d3_octree_src_extent = (function(_) {
+  return arguments.length
+      ? this.cover(+_[0][0], +_[0][1], +_[0][2]).cover(+_[1][0], +_[1][1], +_[1][2])
+      : isNaN(this._x0) ? undefined : [[this._x0, this._y0, this._z0], [this._x1, this._y1, this._z1]];
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/octant.js
+/* harmony default export */ var octant = (function(node, x0, y0, z0, x1, y1, z1) {
+  this.node = node;
+  this.x0 = x0;
+  this.y0 = y0;
+  this.z0 = z0;
+  this.x1 = x1;
+  this.y1 = y1;
+  this.z1 = z1;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/find.js
+
+
+/* harmony default export */ var d3_octree_src_find = (function(x, y, z, radius) {
+  var data,
+      x0 = this._x0,
+      y0 = this._y0,
+      z0 = this._z0,
+      x1,
+      y1,
+      z1,
+      x2,
+      y2,
+      z2,
+      x3 = this._x1,
+      y3 = this._y1,
+      z3 = this._z1,
+      octs = [],
+      node = this._root,
+      q,
+      i;
+
+  if (node) octs.push(new octant(node, x0, y0, z0, x3, y3, z3));
+  if (radius == null) radius = Infinity;
+  else {
+    x0 = x - radius, y0 = y - radius, z0 = z - radius;
+    x3 = x + radius, y3 = y + radius, z3 = z + radius;
+    radius *= radius;
+  }
+
+  while (q = octs.pop()) {
+
+    // Stop searching if this octant can’t contain a closer node.
+    if (!(node = q.node)
+        || (x1 = q.x0) > x3
+        || (y1 = q.y0) > y3
+        || (z1 = q.z0) > z3
+        || (x2 = q.x1) < x0
+        || (y2 = q.y1) < y0
+        || (z2 = q.z1) < z0) continue;
+
+    // Bisect the current octant.
+    if (node.length) {
+      var xm = (x1 + x2) / 2,
+          ym = (y1 + y2) / 2,
+          zm = (z1 + z2) / 2;
+
+      octs.push(
+        new octant(node[7], xm, ym, zm, x2, y2, z2),
+        new octant(node[6], x1, ym, zm, xm, y2, z2),
+        new octant(node[5], xm, y1, zm, x2, ym, z2),
+        new octant(node[4], x1, y1, zm, xm, ym, z2),
+        new octant(node[3], xm, ym, z1, x2, y2, zm),
+        new octant(node[2], x1, ym, z1, xm, y2, zm),
+        new octant(node[1], xm, y1, z1, x2, ym, zm),
+        new octant(node[0], x1, y1, z1, xm, ym, zm)
+      );
+
+      // Visit the closest octant first.
+      if (i = (z >= zm) << 2 | (y >= ym) << 1 | (x >= xm)) {
+        q = octs[octs.length - 1];
+        octs[octs.length - 1] = octs[octs.length - 1 - i];
+        octs[octs.length - 1 - i] = q;
+      }
+    }
+
+    // Visit this point. (Visiting coincident points isn’t necessary!)
+    else {
+      var dx = x - +this._x.call(null, node.data),
+          dy = y - +this._y.call(null, node.data),
+          dz = z - +this._z.call(null, node.data),
+          d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < radius) {
+        var d = Math.sqrt(radius = d2);
+        x0 = x - d, y0 = y - d, z0 = z - d;
+        x3 = x + d, y3 = y + d, z3 = z + d;
+        data = node.data;
+      }
+    }
+  }
+
+  return data;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/remove.js
+/* harmony default export */ var d3_octree_src_remove = (function(d) {
+  if (isNaN(x = +this._x.call(null, d)) || isNaN(y = +this._y.call(null, d)) || isNaN(z = +this._z.call(null, d))) return this; // ignore invalid points
+
+  var parent,
+      node = this._root,
+      retainer,
+      previous,
+      next,
+      x0 = this._x0,
+      y0 = this._y0,
+      z0 = this._z0,
+      x1 = this._x1,
+      y1 = this._y1,
+      z1 = this._z1,
+      x,
+      y,
+      z,
+      xm,
+      ym,
+      zm,
+      right,
+      bottom,
+      deep,
+      i,
+      j;
+
+  // If the tree is empty, initialize the root as a leaf.
+  if (!node) return this;
+
+  // Find the leaf node for the point.
+  // While descending, also retain the deepest parent with a non-removed sibling.
+  if (node.length) while (true) {
+    if (right = x >= (xm = (x0 + x1) / 2)) x0 = xm; else x1 = xm;
+    if (bottom = y >= (ym = (y0 + y1) / 2)) y0 = ym; else y1 = ym;
+    if (deep = z >= (zm = (z0 + z1) / 2)) z0 = zm; else z1 = zm;
+    if (!(parent = node, node = node[i = deep << 2 | bottom << 1 | right])) return this;
+    if (!node.length) break;
+    if (parent[(i + 1) & 7] || parent[(i + 2) & 7] || parent[(i + 3) & 7] || parent[(i + 4) & 7] || parent[(i + 5) & 7] || parent[(i + 6) & 7] || parent[(i + 7) & 7]) retainer = parent, j = i;
+  }
+
+  // Find the point to remove.
+  while (node.data !== d) if (!(previous = node, node = node.next)) return this;
+  if (next = node.next) delete node.next;
+
+  // If there are multiple coincident points, remove just the point.
+  if (previous) return (next ? previous.next = next : delete previous.next), this;
+
+  // If this is the root point, remove it.
+  if (!parent) return this._root = next, this;
+
+  // Remove this leaf.
+  next ? parent[i] = next : delete parent[i];
+
+  // If the parent now contains exactly one leaf, collapse superfluous parents.
+  if ((node = parent[0] || parent[1] || parent[2] || parent[3] || parent[4] || parent[5] || parent[6] || parent[7])
+      && node === (parent[7] || parent[6] || parent[5] || parent[4] || parent[3] || parent[2] || parent[1] || parent[0])
+      && !node.length) {
+    if (retainer) retainer[j] = node;
+    else this._root = node;
+  }
+
+  return this;
+});
+
+function src_remove_removeAll(data) {
+  for (var i = 0, n = data.length; i < n; ++i) this.remove(data[i]);
+  return this;
+}
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/root.js
+/* harmony default export */ var d3_octree_src_root = (function() {
+  return this._root;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/size.js
+/* harmony default export */ var d3_octree_src_size = (function() {
+  var size = 0;
+  this.visit(function(node) {
+    if (!node.length) do ++size; while (node = node.next)
+  });
+  return size;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/visit.js
+
+
+/* harmony default export */ var d3_octree_src_visit = (function(callback) {
+  var octs = [], q, node = this._root, child, x0, y0, z0, x1, y1, z1;
+  if (node) octs.push(new octant(node, this._x0, this._y0, this._z0, this._x1, this._y1, this._z1));
+  while (q = octs.pop()) {
+    if (!callback(node = q.node, x0 = q.x0, y0 = q.y0, z0 = q.z0, x1 = q.x1, y1 = q.y1, z1 = q.z1) && node.length) {
+      var xm = (x0 + x1) / 2, ym = (y0 + y1) / 2, zm = (z0 + z1) / 2;
+      if (child = node[7]) octs.push(new octant(child, xm, ym, zm, x1, y1, z1));
+      if (child = node[6]) octs.push(new octant(child, x0, ym, zm, xm, y1, z1));
+      if (child = node[5]) octs.push(new octant(child, xm, y0, zm, x1, ym, z1));
+      if (child = node[4]) octs.push(new octant(child, x0, y0, zm, xm, ym, z1));
+      if (child = node[3]) octs.push(new octant(child, xm, ym, z0, x1, y1, zm));
+      if (child = node[2]) octs.push(new octant(child, x0, ym, z0, xm, y1, zm));
+      if (child = node[1]) octs.push(new octant(child, xm, y0, z0, x1, ym, zm));
+      if (child = node[0]) octs.push(new octant(child, x0, y0, z0, xm, ym, zm));
+    }
+  }
+  return this;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/visitAfter.js
+
+
+/* harmony default export */ var d3_octree_src_visitAfter = (function(callback) {
+  var octs = [], next = [], q;
+  if (this._root) octs.push(new octant(this._root, this._x0, this._y0, this._z0, this._x1, this._y1, this._z1));
+  while (q = octs.pop()) {
+    var node = q.node;
+    if (node.length) {
+      var child, x0 = q.x0, y0 = q.y0, z0 = q.z0, x1 = q.x1, y1 = q.y1, z1 = q.z1, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2, zm = (z0 + z1) / 2;
+      if (child = node[0]) octs.push(new octant(child, x0, y0, z0, xm, ym, zm));
+      if (child = node[1]) octs.push(new octant(child, xm, y0, z0, x1, ym, zm));
+      if (child = node[2]) octs.push(new octant(child, x0, ym, z0, xm, y1, zm));
+      if (child = node[3]) octs.push(new octant(child, xm, ym, z0, x1, y1, zm));
+      if (child = node[4]) octs.push(new octant(child, x0, y0, zm, xm, ym, z1));
+      if (child = node[5]) octs.push(new octant(child, xm, y0, zm, x1, ym, z1));
+      if (child = node[6]) octs.push(new octant(child, x0, ym, zm, xm, y1, z1));
+      if (child = node[7]) octs.push(new octant(child, xm, ym, zm, x1, y1, z1));
+    }
+    next.push(q);
+  }
+  while (q = next.pop()) {
+    callback(q.node, q.x0, q.y0, q.z0, q.x1, q.y1, q.z1);
+  }
+  return this;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/x.js
+function src_x_defaultX(d) {
+  return d[0];
+}
+
+/* harmony default export */ var d3_octree_src_x = (function(_) {
+  return arguments.length ? (this._x = _, this) : this._x;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/y.js
+function y_defaultY(d) {
+  return d[1];
+}
+
+/* harmony default export */ var d3_octree_src_y = (function(_) {
+  return arguments.length ? (this._y = _, this) : this._y;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/z.js
+function defaultZ(d) {
+  return d[2];
+}
+
+/* harmony default export */ var src_z = (function(_) {
+  return arguments.length ? (this._z = _, this) : this._z;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/octree.js
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function octree(nodes, x, y, z) {
+  var tree = new Octree(x == null ? src_x_defaultX : x, y == null ? y_defaultY : y, z == null ? defaultZ : z, NaN, NaN, NaN, NaN, NaN, NaN);
+  return nodes == null ? tree : tree.addAll(nodes);
+}
+
+function Octree(x, y, z, x0, y0, z0, x1, y1, z1) {
+  this._x = x;
+  this._y = y;
+  this._z = z;
+  this._x0 = x0;
+  this._y0 = y0;
+  this._z0 = z0;
+  this._x1 = x1;
+  this._y1 = y1;
+  this._z1 = z1;
+  this._root = undefined;
+}
+
+function octree_leaf_copy(leaf) {
+  var copy = {data: leaf.data}, next = copy;
+  while (leaf = leaf.next) next = next.next = {data: leaf.data};
+  return copy;
+}
+
+var octree_treeProto = octree.prototype = Octree.prototype;
+
+octree_treeProto.copy = function() {
+  var copy = new Octree(this._x, this._y, this._z, this._x0, this._y0, this._z0, this._x1, this._y1, this._z1),
+      node = this._root,
+      nodes,
+      child;
+
+  if (!node) return copy;
+
+  if (!node.length) return copy._root = octree_leaf_copy(node), copy;
+
+  nodes = [{source: node, target: copy._root = new Array(8)}];
+  while (node = nodes.pop()) {
+    for (var i = 0; i < 8; ++i) {
+      if (child = node.source[i]) {
+        if (child.length) nodes.push({source: child, target: node.target[i] = new Array(8)});
+        else node.target[i] = octree_leaf_copy(child);
+      }
+    }
+  }
+
+  return copy;
+};
+
+octree_treeProto.add = d3_octree_src_add;
+octree_treeProto.addAll = src_add_addAll;
+octree_treeProto.cover = d3_octree_src_cover;
+octree_treeProto.data = d3_octree_src_data;
+octree_treeProto.extent = d3_octree_src_extent;
+octree_treeProto.find = d3_octree_src_find;
+octree_treeProto.remove = d3_octree_src_remove;
+octree_treeProto.removeAll = src_remove_removeAll;
+octree_treeProto.root = d3_octree_src_root;
+octree_treeProto.size = d3_octree_src_size;
+octree_treeProto.visit = d3_octree_src_visit;
+octree_treeProto.visitAfter = d3_octree_src_visitAfter;
+octree_treeProto.x = d3_octree_src_x;
+octree_treeProto.y = d3_octree_src_y;
+octree_treeProto.z = src_z;
+
+// CONCATENATED MODULE: ./node_modules/d3-octree/src/index.js
+
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/collide.js
+
+
 
 
 
@@ -4981,8 +5923,13 @@ function collide_y(d) {
   return d.y + d.vy;
 }
 
+function collide_z(d) {
+  return d.z + d.vz;
+}
+
 /* harmony default export */ var collide = (function(radius) {
   var nodes,
+      nDim,
       radii,
       strength = 1,
       iterations = 1;
@@ -4995,48 +5942,72 @@ function collide_y(d) {
         node,
         xi,
         yi,
+        zi,
         ri,
         ri2;
 
     for (var k = 0; k < iterations; ++k) {
-      tree = quadtree(nodes, collide_x, collide_y).visitAfter(prepare);
+      tree =
+          (nDim === 1 ? binarytree(nodes, collide_x)
+          :(nDim === 2 ? quadtree(nodes, collide_x, collide_y)
+          :(nDim === 3 ? octree(nodes, collide_x, collide_y, collide_z)
+          :null
+      ))).visitAfter(prepare);
+
       for (i = 0; i < n; ++i) {
         node = nodes[i];
         ri = radii[node.index], ri2 = ri * ri;
         xi = node.x + node.vx;
-        yi = node.y + node.vy;
+        if (nDim > 1) { yi = node.y + node.vy; }
+        if (nDim > 2) { zi = node.z + node.vz; }
         tree.visit(apply);
       }
     }
 
-    function apply(quad, x0, y0, x1, y1) {
-      var data = quad.data, rj = quad.r, r = ri + rj;
+    function apply(treeNode, arg1, arg2, arg3, arg4, arg5, arg6) {
+      var args = [arg1, arg2, arg3, arg4, arg5, arg6];
+      var x0 = args[0],
+          y0 = args[1],
+          z0 = args[2],
+          x1 = args[nDim],
+          y1 = args[nDim+1],
+          z1 = args[nDim+2];
+
+      var data = treeNode.data, rj = treeNode.r, r = ri + rj;
       if (data) {
         if (data.index > node.index) {
           var x = xi - data.x - data.vx,
-              y = yi - data.y - data.vy,
-              l = x * x + y * y;
+              y = (nDim > 1 ? yi - data.y - data.vy : 0),
+              z = (nDim > 2 ? zi - data.z - data.vz : 0),
+              l = x * x + y * y + z * z;
           if (l < r * r) {
             if (x === 0) x = jiggle(), l += x * x;
-            if (y === 0) y = jiggle(), l += y * y;
+            if (nDim > 1 && y === 0) y = jiggle(), l += y * y;
+            if (nDim > 2 && z === 0) z = jiggle(), l += z * z;
             l = (r - (l = Math.sqrt(l))) / l * strength;
+
             node.vx += (x *= l) * (r = (rj *= rj) / (ri2 + rj));
-            node.vy += (y *= l) * r;
+            if (nDim > 1) { node.vy += (y *= l) * r; }
+            if (nDim > 2) { node.vz += (z *= l) * r; }
+
             data.vx -= x * (r = 1 - r);
-            data.vy -= y * r;
+            if (nDim > 1) { data.vy -= y * r; }
+            if (nDim > 2) { data.vz -= z * r; }
           }
         }
         return;
       }
-      return x0 > xi + r || x1 < xi - r || y0 > yi + r || y1 < yi - r;
+      return x0 > xi + r || x1 < xi - r
+          || (nDim > 1 && (y0 > yi + r || y1 < yi - r))
+          || (nDim > 2 && (z0 > zi + r || z1 < zi - r));
     }
   }
 
-  function prepare(quad) {
-    if (quad.data) return quad.r = radii[quad.data.index];
-    for (var i = quad.r = 0; i < 4; ++i) {
-      if (quad[i] && quad[i].r > quad.r) {
-        quad.r = quad[i].r;
+  function prepare(treeNode) {
+    if (treeNode.data) return treeNode.r = radii[treeNode.data.index];
+    for (var i = treeNode.r = 0; i < Math.pow(2, nDim); ++i) {
+      if (treeNode[i] && treeNode[i].r > treeNode.r) {
+        treeNode.r = treeNode[i].r;
       }
     }
   }
@@ -5048,8 +6019,9 @@ function collide_y(d) {
     for (i = 0; i < n; ++i) node = nodes[i], radii[node.index] = +radius(node, i, nodes);
   }
 
-  force.initialize = function(_) {
-    nodes = _;
+  force.initialize = function(initNodes, numDimensions) {
+    nodes = initNodes;
+    nDim = numDimensions;
     initialize();
   };
 
@@ -5290,7 +6262,7 @@ function set(object, f) {
 
 
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/link.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/link.js
 
 
 
@@ -5312,6 +6284,7 @@ function link_find(nodeById, nodeId) {
       distance = constant(30),
       distances,
       nodes,
+      nDim,
       count,
       bias,
       iterations = 1;
@@ -5324,17 +6297,22 @@ function link_find(nodeById, nodeId) {
 
   function force(alpha) {
     for (var k = 0, n = links.length; k < iterations; ++k) {
-      for (var i = 0, link, source, target, x, y, l, b; i < n; ++i) {
+      for (var i = 0, link, source, target, x = 0, y = 0, z = 0, l, b; i < n; ++i) {
         link = links[i], source = link.source, target = link.target;
         x = target.x + target.vx - source.x - source.vx || jiggle();
-        y = target.y + target.vy - source.y - source.vy || jiggle();
-        l = Math.sqrt(x * x + y * y);
+        if (nDim > 1) { y = target.y + target.vy - source.y - source.vy || jiggle(); }
+        if (nDim > 2) { z = target.z + target.vz - source.z - source.vz || jiggle(); }
+        l = Math.sqrt(x * x + y * y + z * z);
         l = (l - distances[i]) / l * alpha * strengths[i];
-        x *= l, y *= l;
+        x *= l, y *= l, z *= l;
+
         target.vx -= x * (b = bias[i]);
-        target.vy -= y * b;
+        if (nDim > 1) { target.vy -= y * b; }
+        if (nDim > 2) { target.vz -= z * b; }
+
         source.vx += x * (b = 1 - b);
-        source.vy += y * b;
+        if (nDim > 1) { source.vy += y * b; }
+        if (nDim > 2) { source.vz += z * b; }
       }
     }
   }
@@ -5380,8 +6358,9 @@ function link_find(nodeById, nodeId) {
     }
   }
 
-  force.initialize = function(_) {
-    nodes = _;
+  force.initialize = function(initNodes, numDimensions) {
+    nodes = initNodes;
+    nDim = numDimensions;
     initialize();
   };
 
@@ -5644,10 +6623,12 @@ function sleep(time) {
 
 
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/simulation.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/simulation.js
 
 
 
+
+var MAX_DIMENSIONS = 3;
 
 function simulation_x(d) {
   return d.x;
@@ -5657,11 +6638,19 @@ function simulation_y(d) {
   return d.y;
 }
 
-var initialRadius = 10,
-    initialAngle = Math.PI * (3 - Math.sqrt(5));
+function simulation_z(d) {
+  return d.z;
+}
 
-/* harmony default export */ var src_simulation = (function(nodes) {
-  var simulation,
+var initialRadius = 10,
+    initialAngleRoll = Math.PI * (3 - Math.sqrt(5)), // Golden angle
+    initialAngleYaw = Math.PI / 24; // Sequential
+
+/* harmony default export */ var src_simulation = (function(nodes, numDimensions) {
+  numDimensions = numDimensions || 2;
+
+  var nDim = Math.min(MAX_DIMENSIONS, Math.max(1, Math.round(numDimensions))),
+      simulation,
       alpha = 1,
       alphaMin = 0.001,
       alphaDecay = 1 - Math.pow(alphaMin, 1 / 300),
@@ -5695,27 +6684,38 @@ var initialRadius = 10,
       node = nodes[i];
       if (node.fx == null) node.x += node.vx *= velocityDecay;
       else node.x = node.fx, node.vx = 0;
-      if (node.fy == null) node.y += node.vy *= velocityDecay;
-      else node.y = node.fy, node.vy = 0;
+      if (nDim > 1) {
+        if (node.fy == null) node.y += node.vy *= velocityDecay;
+        else node.y = node.fy, node.vy = 0;
+      }
+      if (nDim > 2) {
+        if (node.fz == null) node.z += node.vz *= velocityDecay;
+        else node.z = node.fz, node.vz = 0;
+      }
     }
   }
 
   function initializeNodes() {
     for (var i = 0, n = nodes.length, node; i < n; ++i) {
       node = nodes[i], node.index = i;
-      if (isNaN(node.x) || isNaN(node.y)) {
-        var radius = initialRadius * Math.sqrt(i), angle = i * initialAngle;
-        node.x = radius * Math.cos(angle);
-        node.y = radius * Math.sin(angle);
+      if (isNaN(node.x) || (nDim > 1 && isNaN(node.y)) || (nDim > 2 && isNaN(node.z))) {
+        var radius = initialRadius * (nDim > 2 ? Math.cbrt(i) : (nDim > 1 ? Math.sqrt(i) : i)),
+          rollAngle = i * initialAngleRoll,
+          yawAngle = i * initialAngleYaw;
+        node.x = radius * (nDim > 1 ? Math.cos(rollAngle) : 1);
+        if (nDim > 1) { node.y = radius * Math.sin(rollAngle); }
+        if (nDim > 2) { node.z = radius * Math.sin(yawAngle); }
       }
-      if (isNaN(node.vx) || isNaN(node.vy)) {
-        node.vx = node.vy = 0;
+      if (isNaN(node.vx) || (nDim > 1 && isNaN(node.vy)) || (nDim > 2 && isNaN(node.vz))) {
+        node.vx = 0;
+        if (nDim > 1) { node.vy = 0; }
+        if (nDim > 2) { node.vz = 0; }
       }
     }
   }
 
   function initializeForce(force) {
-    if (force.initialize) force.initialize(nodes);
+    if (force.initialize) force.initialize(nodes, nDim);
     return force;
   }
 
@@ -5730,6 +6730,12 @@ var initialRadius = 10,
 
     stop: function() {
       return stepper.stop(), simulation;
+    },
+
+    numDimensions: function(_) {
+      return arguments.length
+          ? (nDim = Math.min(MAX_DIMENSIONS, Math.max(1, Math.round(_))), forces.each(initializeForce), simulation)
+          : nDim;
     },
 
     nodes: function(_) {
@@ -5760,23 +6766,30 @@ var initialRadius = 10,
       return arguments.length > 1 ? ((_ == null ? forces.remove(name) : forces.set(name, initializeForce(_))), simulation) : forces.get(name);
     },
 
-    find: function(x, y, radius) {
+    find: function() {
+      var args = Array.prototype.slice.call(arguments);
+      var x = args.shift() || 0,
+          y = (nDim > 1 ? args.shift() : null) || 0,
+          z = (nDim > 2 ? args.shift() : null) || 0,
+          radius = args.shift() || Infinity;
+
       var i = 0,
           n = nodes.length,
           dx,
           dy,
+          dz,
           d2,
           node,
           closest;
 
-      if (radius == null) radius = Infinity;
-      else radius *= radius;
+      radius *= radius;
 
       for (i = 0; i < n; ++i) {
         node = nodes[i];
         dx = x - node.x;
-        dy = y - node.y;
-        d2 = dx * dx + dy * dy;
+        dy = y - (node.y || 0);
+        dz = z - (node.z ||0);
+        d2 = dx * dx + dy * dy + dz * dz;
         if (d2 < radius) closest = node, radius = d2;
       }
 
@@ -5789,7 +6802,9 @@ var initialRadius = 10,
   };
 });
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/manyBody.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/manyBody.js
+
+
 
 
 
@@ -5797,6 +6812,7 @@ var initialRadius = 10,
 
 /* harmony default export */ var manyBody = (function() {
   var nodes,
+      nDim,
       node,
       alpha,
       strength = constant(-30),
@@ -5806,7 +6822,15 @@ var initialRadius = 10,
       theta2 = 0.81;
 
   function force(_) {
-    var i, n = nodes.length, tree = quadtree(nodes, simulation_x, simulation_y).visitAfter(accumulate);
+    var i,
+        n = nodes.length,
+        tree =
+            (nDim === 1 ? binarytree(nodes, simulation_x)
+            :(nDim === 2 ? quadtree(nodes, simulation_x, simulation_y)
+            :(nDim === 3 ? octree(nodes, simulation_x, simulation_y, simulation_z)
+            :null
+        ))).visitAfter(accumulate);
+
     for (alpha = _, i = 0; i < n; ++i) node = nodes[i], tree.visit(apply);
   }
 
@@ -5817,72 +6841,81 @@ var initialRadius = 10,
     for (i = 0; i < n; ++i) node = nodes[i], strengths[node.index] = +strength(node, i, nodes);
   }
 
-  function accumulate(quad) {
-    var strength = 0, q, c, weight = 0, x, y, i;
+  function accumulate(treeNode) {
+    var strength = 0, q, c, weight = 0, x, y, z, i;
 
-    // For internal nodes, accumulate forces from child quadrants.
-    if (quad.length) {
-      for (x = y = i = 0; i < 4; ++i) {
-        if ((q = quad[i]) && (c = Math.abs(q.value))) {
-          strength += q.value, weight += c, x += c * q.x, y += c * q.y;
+    // For internal nodes, accumulate forces from children.
+    if (treeNode.length) {
+      for (x = y = z = i = 0; i < 4; ++i) {
+        if ((q = treeNode[i]) && (c = Math.abs(q.value))) {
+          strength += q.value, weight += c, x += c * (q.x || 0), y += c * (q.y || 0), z += c * (q.z || 0);
         }
       }
-      quad.x = x / weight;
-      quad.y = y / weight;
+      treeNode.x = x / weight;
+      if (nDim > 1) { treeNode.y = y / weight; }
+      if (nDim > 2) { treeNode.z = z / weight; }
     }
 
-    // For leaf nodes, accumulate forces from coincident quadrants.
+    // For leaf nodes, accumulate forces from coincident nodes.
     else {
-      q = quad;
+      q = treeNode;
       q.x = q.data.x;
-      q.y = q.data.y;
+      if (nDim > 1) { q.y = q.data.y; }
+      if (nDim > 2) { q.z = q.data.z; }
       do strength += strengths[q.data.index];
       while (q = q.next);
     }
 
-    quad.value = strength;
+    treeNode.value = strength;
   }
 
-  function apply(quad, x1, _, x2) {
-    if (!quad.value) return true;
+  function apply(treeNode, x1, arg1, arg2, arg3) {
+    if (!treeNode.value) return true;
+    var x2 = [arg1, arg2, arg3][nDim-1];
 
-    var x = quad.x - node.x,
-        y = quad.y - node.y,
+    var x = treeNode.x - node.x,
+        y = (nDim > 1 ? treeNode.y - node.y : 0),
+        z = (nDim > 2 ? treeNode.z - node.z : 0),
         w = x2 - x1,
-        l = x * x + y * y;
+        l = x * x + y * y + z * z;
 
     // Apply the Barnes-Hut approximation if possible.
     // Limit forces for very close nodes; randomize direction if coincident.
     if (w * w / theta2 < l) {
       if (l < distanceMax2) {
         if (x === 0) x = jiggle(), l += x * x;
-        if (y === 0) y = jiggle(), l += y * y;
+        if (nDim > 1 && y === 0) y = jiggle(), l += y * y;
+        if (nDim > 2 && z === 0) z = jiggle(), l += z * z;
         if (l < distanceMin2) l = Math.sqrt(distanceMin2 * l);
-        node.vx += x * quad.value * alpha / l;
-        node.vy += y * quad.value * alpha / l;
+        node.vx += x * treeNode.value * alpha / l;
+        if (nDim > 1) { node.vy += y * treeNode.value * alpha / l; }
+        if (nDim > 2) { node.vz += z * treeNode.value * alpha / l; }
       }
       return true;
     }
 
     // Otherwise, process points directly.
-    else if (quad.length || l >= distanceMax2) return;
+    else if (treeNode.length || l >= distanceMax2) return;
 
     // Limit forces for very close nodes; randomize direction if coincident.
-    if (quad.data !== node || quad.next) {
+    if (treeNode.data !== node || treeNode.next) {
       if (x === 0) x = jiggle(), l += x * x;
-      if (y === 0) y = jiggle(), l += y * y;
+      if (nDim > 1 && y === 0) y = jiggle(), l += y * y;
+      if (nDim > 2 && z === 0) z = jiggle(), l += z * z;
       if (l < distanceMin2) l = Math.sqrt(distanceMin2 * l);
     }
 
-    do if (quad.data !== node) {
-      w = strengths[quad.data.index] * alpha / l;
+    do if (treeNode.data !== node) {
+      w = strengths[treeNode.data.index] * alpha / l;
       node.vx += x * w;
-      node.vy += y * w;
-    } while (quad = quad.next);
+      if (nDim > 1) { node.vy += y * w; }
+      if (nDim > 2) { node.vz += z * w; }
+    } while (treeNode = treeNode.next);
   }
 
-  force.initialize = function(_) {
-    nodes = _;
+  force.initialize = function(initNodes, numDimensions) {
+    nodes = initNodes;
+    nDim = numDimensions;
     initialize();
   };
 
@@ -5905,11 +6938,12 @@ var initialRadius = 10,
   return force;
 });
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/radial.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/radial.js
 
 
-/* harmony default export */ var radial = (function(radius, x, y) {
+/* harmony default export */ var radial = (function(radius, x, y, z) {
   var nodes,
+      nDim,
       strength = constant(0.1),
       strengths,
       radiuses;
@@ -5917,16 +6951,19 @@ var initialRadius = 10,
   if (typeof radius !== "function") radius = constant(+radius);
   if (x == null) x = 0;
   if (y == null) y = 0;
+  if (z == null) z = 0;
 
   function force(alpha) {
     for (var i = 0, n = nodes.length; i < n; ++i) {
       var node = nodes[i],
           dx = node.x - x || 1e-6,
-          dy = node.y - y || 1e-6,
-          r = Math.sqrt(dx * dx + dy * dy),
+          dy = (node.y || 0) - y || 1e-6,
+          dz = (node.z || 0) - z || 1e-6,
+          r = Math.sqrt(dx * dx + dy * dy + dz * dz),
           k = (radiuses[i] - r) * strengths[i] * alpha / r;
       node.vx += dx * k;
-      node.vy += dy * k;
+      if (nDim>1) { node.vy += dy * k; }
+      if (nDim>2) { node.vz += dz * k; }
     }
   }
 
@@ -5941,8 +6978,10 @@ var initialRadius = 10,
     }
   }
 
-  force.initialize = function(_) {
-    nodes = _, initialize();
+  force.initialize = function(initNodes, numDimensions) {
+    nodes = initNodes;
+    nDim = numDimensions;
+    initialize();
   };
 
   force.strength = function(_) {
@@ -5961,13 +7000,17 @@ var initialRadius = 10,
     return arguments.length ? (y = +_, force) : y;
   };
 
+  force.z = function(_) {
+    return arguments.length ? (z = +_, force) : z;
+  };
+
   return force;
 });
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/x.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/x.js
 
 
-/* harmony default export */ var d3_force_src_x = (function(x) {
+/* harmony default export */ var d3_force_3d_src_x = (function(x) {
   var strength = constant(0.1),
       nodes,
       strengths,
@@ -6007,10 +7050,10 @@ var initialRadius = 10,
   return force;
 });
 
-// CONCATENATED MODULE: ./node_modules/d3-force/src/y.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/y.js
 
 
-/* harmony default export */ var d3_force_src_y = (function(y) {
+/* harmony default export */ var d3_force_3d_src_y = (function(y) {
   var strength = constant(0.1),
       nodes,
       strengths,
@@ -6050,7 +7093,50 @@ var initialRadius = 10,
   return force;
 });
 
-// CONCATENATED MODULE: ./node_modules/d3-force/index.js
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/z.js
+
+
+/* harmony default export */ var d3_force_3d_src_z = (function(z) {
+  var strength = constant(0.1),
+      nodes,
+      strengths,
+      zz;
+
+  if (typeof z !== "function") z = constant(z == null ? 0 : +z);
+
+  function force(alpha) {
+    for (var i = 0, n = nodes.length, node; i < n; ++i) {
+      node = nodes[i], node.vz += (zz[i] - node.z) * strengths[i] * alpha;
+    }
+  }
+
+  function initialize() {
+    if (!nodes) return;
+    var i, n = nodes.length;
+    strengths = new Array(n);
+    zz = new Array(n);
+    for (i = 0; i < n; ++i) {
+      strengths[i] = isNaN(zz[i] = +z(nodes[i], i, nodes)) ? 0 : +strength(nodes[i], i, nodes);
+    }
+  }
+
+  force.initialize = function(_) {
+    nodes = _;
+    initialize();
+  };
+
+  force.strength = function(_) {
+    return arguments.length ? (strength = typeof _ === "function" ? _ : constant(+_), initialize(), force) : strength;
+  };
+
+  force.z = function(_) {
+    return arguments.length ? (z = typeof _ === "function" ? _ : constant(+_), initialize(), force) : z;
+  };
+
+  return force;
+});
+
+// CONCATENATED MODULE: ./node_modules/d3-force-3d/src/index.js
 
 
 
@@ -6060,7 +7146,7 @@ var initialRadius = 10,
 
 
 
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"49b37c8e-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/pug-plain-loader!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/components/svgRenderer.vue?vue&type=template&id=6f726b1f&lang=pug&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"59deab9e-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/pug-plain-loader!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/components/svgRenderer.vue?vue&type=template&id=6f726b1f&lang=pug&
 var render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('svg',{ref:"svg",staticClass:"net-svg",attrs:{"xmlns":"http://www.w3.org/2000/svg","xmlns:xlink":"http://www.w3.org/1999/xlink","width":_vm.size.w,"height":_vm.size.h},on:{"mouseup":function($event){_vm.emit("dragEnd",[$event])},"&touchend":function($event){_vm.emit("dragEnd",[$event])},"&touchstart":function($event){}}},[_c('g',{staticClass:"links",attrs:{"id":"l-links"}},_vm._l((_vm.links),function(link){return _c('path',_vm._b({class:_vm.linkClass(link.id),style:(_vm.linkStyle(link)),attrs:{"d":_vm.linkPath(link),"id":link.id},on:{"click":function($event){_vm.emit("linkClick",[$event,link])},"&touchstart":function($event){_vm.emit("linkClick",[$event,link])}}},'path',_vm.linkAttrs(link),false))})),(!_vm.noNodes)?_c('g',{staticClass:"nodes",attrs:{"id":"l-nodes"}},[_vm._l((_vm.nodes),function(node,key){return [(_vm.svgIcon(node))?_c('svg',_vm._b({key:key,class:_vm.nodeClass(node,["node-svg"]),style:(_vm.nodeStyle(node)),attrs:{"viewBox":_vm.svgIcon(node).attrs.viewBox,"width":_vm.getNodeSize(node, "width"),"height":_vm.getNodeSize(node, "height"),"x":node.x - _vm.getNodeSize(node, "width") / 2,"y":node.y - _vm.getNodeSize(node, "height") / 2,"title":node.name},domProps:{"innerHTML":_vm._s(_vm.svgIcon(node).data)},on:{"click":function($event){_vm.emit("nodeClick",[$event,node])},"&touchend":function($event){_vm.emit("nodeClick",[$event,node])},"mousedown":function($event){$event.preventDefault();_vm.emit("dragStart",[$event,key])},"touchstart":function($event){$event.preventDefault();_vm.emit("dragStart",[$event,key])}}},'svg',node._svgAttrs,false)):_c('circle',_vm._b({key:key,class:_vm.nodeClass(node),style:(_vm.nodeStyle(node)),attrs:{"r":_vm.getNodeSize(node) / 2,"cx":node.x,"cy":node.y,"title":node.name},on:{"click":function($event){_vm.emit("nodeClick",[$event,node])},"&touchend":function($event){_vm.emit("nodeClick",[$event,node])},"mousedown":function($event){$event.preventDefault();_vm.emit("dragStart",[$event,key])},"touchstart":function($event){$event.preventDefault();_vm.emit("dragStart",[$event,key])}}},'circle',node._svgAttrs,false))]})],2):_vm._e(),(_vm.linkLabels)?_c('g',{staticClass:"labels",attrs:{"id":"link-labels"}},_vm._l((_vm.links),function(link){return _c('text',{staticClass:"link-label",attrs:{"font-size":_vm.fontSize}},[_c('textPath',{attrs:{"xlink:href":'#' + link.id,"startOffset":"50%"}},[_vm._v(_vm._s(link.name))])])})):_vm._e(),(_vm.nodeLabels)?_c('g',{staticClass:"labels",attrs:{"id":"node-labels"}},_vm._l((_vm.nodes),function(node){return _c('text',{staticClass:"node-label",class:(node._labelClass) ? node._labelClass : "",attrs:{"x":node.x + (_vm.getNodeSize(node) / 2) + (_vm.fontSize / 2),"y":node.y + _vm.labelOffset.y,"font-size":_vm.fontSize,"stroke-width":_vm.fontSize / 8}},[_vm._v(_vm._s(node.name))])})):_vm._e()])}
 var staticRenderFns = []
 
@@ -6355,7 +7441,7 @@ var values_default = /*#__PURE__*/__webpack_require__.n(object_values);
     return url;
   }
 });
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/babel-loader/lib!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/components/svgRenderer.vue?vue&type=script&lang=js&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/components/svgRenderer.vue?vue&type=script&lang=js&
 
 
 
@@ -6669,7 +7755,7 @@ var component = normalizeComponent(
 )
 
 /* harmony default export */ var svgRenderer = (component.exports);
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"49b37c8e-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/pug-plain-loader!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/components/canvasRenderer.vue?vue&type=template&id=15b33650&lang=pug&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js?{"cacheDirectory":"node_modules/.cache/vue-loader","cacheIdentifier":"59deab9e-vue-loader-template"}!./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/pug-plain-loader!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/components/canvasRenderer.vue?vue&type=template&id=15b33650&lang=pug&
 var canvasRenderervue_type_template_id_15b33650_lang_pug_render = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('canvas',{directives:[{name:"render-canvas",rawName:"v-render-canvas",value:({links: _vm.links, nodes: _vm.nodes}),expression:"{links, nodes}"}],ref:"canvas",style:(_vm.canvasStyle),attrs:{"id":"canvas","width":_vm.size.w,"height":_vm.size.h},on:{"mouseup":function($event){$event.preventDefault();return _vm.canvasClick($event)},"mousedown":function($event){$event.preventDefault();return _vm.canvasClick($event)},"touchstart":function($event){$event.preventDefault();return _vm.canvasClick($event)},"&touchend":function($event){return _vm.canvasClick($event)}}})}
 var canvasRenderervue_type_template_id_15b33650_lang_pug_staticRenderFns = []
 
@@ -6840,7 +7926,7 @@ var es6_regexp_to_string = __webpack_require__("6b54");
     return el;
   }
 });
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/babel-loader/lib!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/components/canvasRenderer.vue?vue&type=script&lang=js&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/components/canvasRenderer.vue?vue&type=script&lang=js&
 
 
 
@@ -7442,7 +8528,7 @@ var es6_typed_uint8_array = __webpack_require__("34ef");
     document.body.removeChild(el);
   }
 });
-// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/babel-loader/lib!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/vue-d3-network.vue?vue&type=script&lang=js&
+// CONCATENATED MODULE: ./node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/vue-loader/lib??vue-loader-options!./src/vue-d3-network.vue?vue&type=script&lang=js&
 
 
 
@@ -7452,7 +8538,7 @@ var es6_typed_uint8_array = __webpack_require__("34ef");
 
 
 
-var d3 = assign_default()({}, d3_force_namespaceObject);
+var d3 = assign_default()({}, d3_force_3d_src_namespaceObject);
 
 /* harmony default export */ var vue_d3_networkvue_type_script_lang_js_ = ({
   name: 'd3-network',
