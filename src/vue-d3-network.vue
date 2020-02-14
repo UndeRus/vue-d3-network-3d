@@ -2,6 +2,7 @@
 import * as forceSimulation from 'd3-force-3d'
 import svgRenderer from './components/svgRenderer.vue'
 import canvasRenderer from './components/canvasRenderer.vue'
+import threejsRenderer from './components/threejsRenderer.vue'
 import saveImage from './lib/js/saveImage.js'
 import svgExport from './lib/js/svgExport.js'
 const d3 = Object.assign({}, forceSimulation)
@@ -10,7 +11,8 @@ export default {
   name: 'd3-network',
   components: {
     canvasRenderer,
-    svgRenderer
+    svgRenderer,
+    threejsRenderer
   },
   props: {
     netNodes: {

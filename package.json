@@ -30,7 +30,9 @@
     "component"
   ],
   "dependencies": {
-    "d3-force-3d": "^1.0.6"
+    "3d-force-graph": "^1.58.1",
+    "d3-force-3d": "^1.0.6",
+    "three": "^0.113.2"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^3.4.0",
